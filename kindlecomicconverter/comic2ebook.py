@@ -25,9 +25,9 @@ from copy import copy
 from glob import glob, escape
 from re import sub
 from stat import S_IWRITE, S_IREAD, S_IEXEC
-from zipfile import ZipFile, ZIP_STORED, ZIP_DEFLATED
+from zipfile import ZipFile, ZipInfo, ZIP_STORED, ZIP_DEFLATED
 from tempfile import mkdtemp, gettempdir, TemporaryFile
-from shutil import move, copytree, rmtree
+from shutil import move, copytree, rmtree, copyfileobj
 from optparse import OptionParser, OptionGroup
 from multiprocessing import Pool
 from uuid import uuid4
@@ -896,7 +896,16 @@ def makeZIP(zipfilename, basedir, isepub=False):
             path = os.path.normpath(os.path.join(dirpath, name))
             aPath = os.path.normpath(os.path.join(dirpath.replace(basedir, ''), name))
             if os.path.isfile(path):
-                zipOutput.write(path, aPath)
+                # (sanitizePermissions() is called on source, not on this)
+                os.chmod(path, 0o644)
+                # We can't reliably use os.utime() since zipfile stores the
+                # timestamp as localtime, not gmtime
+                zinfo = ZipInfo.from_file(path, aPath)
+                zinfo.compress_type = zipOutput.compression
+                # Timestamp copied from Perl's File::StripNondeterminism
+                zinfo.date_time = (1980, 1, 1, 12, 1, 0)
+                with open(path, "rb") as src, zipOutput.open(zinfo, 'w') as dest:
+                    copyfileobj(src, dest, 1024*8)
     zipOutput.close()
     return zipfilename
 

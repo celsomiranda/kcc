@@ -889,8 +889,10 @@ def makeZIP(zipfilename, basedir, isepub=False):
     zipOutput = ZipFile(zipfilename, 'w', ZIP_DEFLATED)
     if isepub:
         zipOutput.writestr('mimetype', 'application/epub+zip', ZIP_STORED)
-    for dirpath, _, filenames in os.walk(basedir):
-        for name in filenames:
+    for dirpath, dirs, filenames in os.walk(basedir):
+        # Thanks to https://stackoverflow.com/a/6670926 for this trick!
+        dirs.sort()
+        for name in sorted(filenames):
             path = os.path.normpath(os.path.join(dirpath, name))
             aPath = os.path.normpath(os.path.join(dirpath.replace(basedir, ''), name))
             if os.path.isfile(path):
